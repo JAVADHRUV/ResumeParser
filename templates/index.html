@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Scorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            padding: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        input[type="file"], textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="file"]:hover, textarea:hover {
+            border-color: #4facfe;
+        }
+
+        textarea {
+            height: 120px;
+            resize: vertical;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+            width: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+
+        .result-section {
+            padding: 30px;
+            background: #f8f9fa;
+            border-top: 1px solid #eee;
+        }
+
+        .score-display {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .score {
+            font-size: 4em;
+            font-weight: bold;
+            color: #4facfe;
+            margin: 10px 0;
+        }
+
+        .score-text {
+            font-size: 1.2em;
+            color: #666;
+        }
+
+        .history-section {
+            padding: 30px;
+            background: white;
+        }
+
+        .history-item {
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            background: #fafafa;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #f0f0f0;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            width: 0%;
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>AI Resume Scorer</h1>
+            <p>Upload your resume and job description to get an AI-powered match score</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="form-group">
+                <label for="resume">Upload Resume (PDF)</label>
+                <input type="file" id="resume" accept=".pdf">
+            </div>
+
+            <div class="form-group">
+                <label for="jobDesc">Job Description</label>
+                <textarea id="jobDesc" placeholder="Paste the job description here..."></textarea>
+            </div>
+
+            <button class="btn" onclick="scoreResume()">Score My Resume</button>
+        </div>
+
+        <div class="result-section" id="resultSection" style="display: none;">
+            <div class="score-display">
+                <div class="score-text">Your Resume Match Score</div>
+                <div class="score" id="scoreValue">0%</div>
+                <div id="scoreFeedback"></div>
+            </div>
+        </div>
+
+        <div class="history-section">
+            <h3>Recent Scores</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <script>
+        async function scoreResume() {
+            const fileInput = document.getElementById('resume');
+            const jobDesc = document.getElementById('jobDesc').value;
+            const resultSection = document.getElementById('resultSection');
+            const scoreValue = document.getElementById('scoreValue');
+            const scoreFeedback = document.getElementById('scoreFeedback');
+
+            if (!fileInput.files[0] || !jobDesc) {
+                alert('Please upload a resume and enter a job description');
+                return;
+            }
+
+            // Show loading
+            resultSection.style.display = 'block';
+            scoreValue.textContent = 'Processing...';
+            scoreFeedback.innerHTML = '<div class="progress-bar"><div class="progress"></div></div>';
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('job_desc', jobDesc);
+
+            try {
+                const response = await fetch('/score', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+                
+                // Update score display
+                scoreValue.textContent = data.score + '%';
+                scoreFeedback.innerHTML = getScoreFeedback(data.score);
+                
+                // Load updated history
+                loadHistory();
+                
+            } catch (error) {
+                console.error('Error:', error);
+                scoreValue.textContent = 'Error';
+                scoreFeedback.textContent = 'Failed to process resume';
+            }
+        }
+
+        function getScoreFeedback(score) {
+            if (score >= 80) return '🎉 Excellent match! Your resume strongly aligns with the job requirements.';
+            if (score >= 60) return '✅ Good match! Consider highlighting relevant skills more prominently.';
+            if (score >= 40) return '⚠️ Moderate match. You may need to tailor your resume further.';
+            return '❌ Low match. Consider gaining more relevant experience or skills.';
+        }
+
+        async function loadHistory() {
+            try {
+                const response = await fetch('/scores');
+                const data = await response.json();
+                
+                const historyList = document.getElementById('historyList');
+                historyList.innerHTML = '';
+                
+                data.results.forEach(item => {
+                    const date = new Date(item.analyzed_at).toLocaleString();
+                    historyList.innerHTML += `
+                        <div class="history-item">
+                            <strong>Score: ${item.score}%</strong>
+                            <br>
+                            <small>Date: ${date}</small>
+                        </div>
+                    `;
+                });
+            } catch (error) {
+                console.error('Error loading history:', error);
+            }
+        }
+
+        // Load history on page load
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+</body>
+</html>
