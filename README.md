@@ -1,2 +1,2 @@
 # ResumeParser
-ATS resume parser for any position
+ATS resume parser 
